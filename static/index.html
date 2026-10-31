@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Midnight House</title>
+<style>
+:root{--bg:#0b0a10;--panel:#15131d;--ink:#e9e2d0;--dim:#8d8799;--gold:#d8b45c;--eerie:#7fe3c4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,serif}
+main{max-width:860px;margin:0 auto;padding:16px;display:grid;gap:14px}
+h1{font-weight:400;letter-spacing:.2em;text-transform:uppercase;font-size:20px;color:var(--gold);margin:6px 0}
+.panel{background:var(--panel);border:1px solid #2a2638;border-radius:10px;padding:14px}
+button{background:#211e2e;color:var(--ink);border:1px solid #3a3550;border-radius:6px;padding:8px 12px;font:inherit;cursor:pointer;margin:3px}
+button:hover{border-color:var(--gold)}
+#msg{color:var(--dim);font-style:italic;min-height:1.5em}
+#board{position:relative;height:210px;background:radial-gradient(#2a2118,#14100b);border:2px solid #5a4630;border-radius:14px;overflow:hidden}
+.row{position:absolute;left:0;right:0;display:flex;justify-content:space-around;color:#c9ab72;font-size:19px;letter-spacing:.05em}
+#r1{top:62px}#r2{top:108px}#top{top:14px;font-size:15px}#planchette{position:absolute;width:44px;height:44px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;border:2px solid var(--gold);background:rgba(216,180,92,.12);left:50%;top:80px;transition:left .5s,top .5s;box-shadow:0 0 18px rgba(216,180,92,.4)}
+#whispers{min-height:2.2em;color:var(--eerie);opacity:.65;font-size:14px}
+#spelled{font-size:22px;color:var(--gold);min-height:1.6em;letter-spacing:.08em}
+#note{font-size:13px;color:var(--dim)}
+input{width:100%;background:#0f0d16;color:var(--ink);border:1px solid #3a3550;border-radius:6px;padding:10px;font:inherit}
+.alt{display:inline-block;margin-right:12px;animation:fade 1.2s forwards}@keyframes fade{from{opacity:.9}to{opacity:.15}}
+</style></head><body><main>
+<h1>The Midnight House</h1>
+<div class="panel"><div id="room"></div><div id="msg"></div><div id="acts"></div></div>
+<div class="panel">
+  <div id="board"><div class="row" id="top"></div><div class="row" id="r1"></div><div class="row" id="r2"></div><div id="planchette"></div></div>
+  <div id="whispers" aria-live="polite"></div>
+  <div id="spelled" aria-live="polite"></div>
+  <form id="f"><input id="q" maxlength="200" placeholder="Ask Wren something…" autocomplete="off"></form>
+  <div id="note"></div>
+</div></main>
+<script>
+const $=id=>document.getElementById(id);let sid=null;
+const LET=[...'ABCDEFGHIJKLM'],LET2=[...'NOPQRSTUVWXYZ'];
+$('top').textContent='YES      NO';$('r1').innerHTML=LET.map(c=>`<span data-c="${c}">${c}</span>`).join('');
+$('r2').innerHTML=LET2.map(c=>`<span data-c="${c}">${c}</span>`).join('');
+function render(s){
+  $('room').innerHTML=`<b>${s.title}</b> — ${s.desc}`+(s.won?'<p>✦ Wren is free. The house is quiet.</p>':'');
+  const a=[];s.exits.forEach(e=>a.push(`<button data-a="go" data-t="${e}">Go: ${e}</button>`));
+  s.items.forEach(i=>a.push(`<button data-a="examine" data-t="${i}">Examine: ${i}</button>`));
+  $('acts').innerHTML=a.join('');
+}
+$('acts').onclick=async e=>{const b=e.target.closest('button');if(!b)return;
+  const r=await(await fetch('/api/act',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid,action:b.dataset.a,target:b.dataset.t})})).json();
+  $('msg').textContent=r.message;render(r.state)};
+function move(ch){const el=document.querySelector(`[data-c="${ch.toUpperCase()}"]`);if(!el)return;
+  const b=$('board').getBoundingClientRect(),r=el.getBoundingClientRect(),p=$('planchette');
+  p.style.left=(r.left-b.left+r.width/2-22)+'px';p.style.top=(r.top-b.top+r.height/2-40)+'px'}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+$('f').onsubmit=async e=>{e.preventDefault();const q=$('q').value.trim();if(!q)return;$('q').value='';
+  $('spelled').textContent='';$('whispers').textContent='';$('note').textContent='';
+  const res=await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid,question:q})});
+  const rd=res.body.getReader(),dec=new TextDecoder();let buf='',real=false,final=null;
+  while(true){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
+    const parts=buf.split('\n\n');buf=parts.pop();
+    for(const p of parts){if(!p.startsWith('data:'))continue;const d=JSON.parse(p.slice(5));
+      if(d.error){$('note').textContent='The spirits are silent (model offline).';continue}
+      if(d.done){final=d;continue}
+      real=real||d.real;
+      if(d.alts&&d.alts.length)$('whispers').innerHTML=d.alts.map(a=>`<span class="alt">${a.token.trim()||'·'} ${Math.round(a.prob*100)}%</span>`).join('');
+      for(const ch of d.token){if(/[a-z]/i.test(ch)){move(ch);await sleep(180+(d.prob?(1-d.prob)*500:150))}
+        $('spelled').textContent+=ch}}}
+  if(final){ if(final.blocked){$('spelled').textContent='I CANNOT SAY';$('note').textContent='The ghost tried to reveal something you have not earned yet. The game caught it.'}
+    else $('note').textContent=real?'Planchette speed = real next-token probability. Faint words = candidates the model rejected.':'This model endpoint does not expose token probabilities, so the planchette moves at a fixed pace. (Run locally with Ollama to see the real ones.)'}};
+(async()=>{const r=await(await fetch('/api/start',{method:'POST'})).json();sid=r.sid;render(r.state)})();
+</script></body></html>
