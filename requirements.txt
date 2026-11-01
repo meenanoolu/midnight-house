@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 httpx
-pytest
+python-dotenv
 pymongo
 sentry-sdk
+pytest

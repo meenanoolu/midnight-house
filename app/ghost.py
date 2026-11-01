@@ -48,8 +48,8 @@ class LocalMemory:
 class BackboardMemory:
     """Persists milestones in Backboard so Wren remembers a visitor across sessions.
 
-    NOTE: endpoint shapes follow docs.backboard.io as read during the build; verify
-    against a live key before relying on them. Failures degrade to local memory.
+    Endpoints match docs.backboard.io (memories add/search, X-API-Key header). Memory is
+    per assistant, so it is shared by all visitors of this deployment. Failures degrade to local memory.
     """
     name = "backboard"
 
@@ -73,7 +73,7 @@ class BackboardMemory:
     def recall(self) -> list[str]:
         try:
             r = httpx.post(f"{self.base}/assistants/{self.aid}/memories/search", headers=self._h(),
-                           json={"query": "visitor progress in the haunted house"}, timeout=10)
+                           json={"query": "visitor progress in the haunted house", "limit": 8}, timeout=10)
             r.raise_for_status()
             items = r.json().get("memories", [])
             got = [m.get("content", "") for m in items if m.get("content")]
