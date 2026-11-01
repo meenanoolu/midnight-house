@@ -145,5 +145,7 @@ class GameState:
             "inventory": sorted(self.inv),
             "won": self.won,
             "moves": self.moves,
+            "facts": self.known_facts(),
+            "locked": sum(1 for f in FACTS if f["requires"] is not None and f["requires"] not in self.flags),
             "log": self.log[-6:],
         }

@@ -63,6 +63,11 @@ def index():
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/play")
+def play():
+    return FileResponse(STATIC / "play.html")
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "provider": provider.name, "active": getattr(provider, "active", provider.name)}
