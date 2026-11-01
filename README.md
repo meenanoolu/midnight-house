@@ -4,9 +4,8 @@
 
 Built for the Hacktoberfest Open-Source AI Challenge, Week 4: Ghost in the Machine.
 
-- Play it: `<ADD DEPLOYED URL>`
-- Write-up: `<ADD DEV POST URL>`
-- Demo video: `<ADD VIDEO URL>`
+- Hosted demo: https://midnight-house.onrender.com (runs a scripted stand-in model; see "Run hosted" below)
+- Real Gemma with real probabilities: run it locally (see "Run locally")
 
 ## TL;DR
 
@@ -73,7 +72,7 @@ Open http://localhost:8000. `http://localhost:8000/api/health` shows which model
 
 ## Run hosted (Render)
 
-Ollama only runs on your own machine, so a hosted demo needs an OpenAI-compatible endpoint. Push to GitHub, create a Blueprint from `render.yaml`, and set `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL`. Without them the hosted app runs the mock model.
+Ollama only runs on your own machine, so a hosted demo needs an OpenAI-compatible endpoint. Push to GitHub, create a Blueprint from `render.yaml`, and set `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL`. Without them the hosted app runs the mock model. **The live demo above is in this mode**, so its replies are canned and the planchette moves at a fixed pace. The real-probability experience needs a local model.
 
 To chain providers (try local Ollama first, then hosted endpoints), set `LLM_CHAIN=ollama,openai,openai2` and the matching variables from `.env.example`. A provider is skipped to the next one only if it fails before producing a token.
 
@@ -81,10 +80,11 @@ To chain providers (try local Ollama first, then hosted endpoints), set `LLM_CHA
 
 | Variable | Purpose |
 |---|---|
-| `LLM_PROVIDER` | `mock`, `ollama` or `openai` |
+| `LLM_PROVIDER` | `mock`, `ollama`, `openai`, or `leaky` (a scripted test model that deliberately tries to leak, to exercise the guard and Sentry) |
 | `LLM_CHAIN` | Comma list such as `ollama,openai,openai2` (overrides `LLM_PROVIDER`) |
 | `OLLAMA_HOST`, `OLLAMA_MODEL` | Local model settings |
 | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | Hosted endpoint (`_2` variants for the second one) |
+| `LLM_MAX_TOKENS`, `LLM_EXTRA_BODY` | Optional: reply length limit (default 60) and extra JSON merged into the request, for thinking models |
 | `MONGODB_URI`, `MONGODB_DB` | Session and ledger storage |
 | `SENTRY_DSN` | Tracing and guard events |
 | `BACKBOARD_API_KEY`, `BACKBOARD_ASSISTANT_ID` | Cross-session memory |
