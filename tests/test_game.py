@@ -45,3 +45,22 @@ def test_ollama_parser_real_probs():
 def test_parsers_fall_back_honestly():
     assert parse_ollama_chunk({"response": "x"})[0]["real"] is False
     assert parse_openai_chunk({"choices": [{"delta": {"content": "x"}}]})[0]["real"] is False
+
+
+def test_chain_falls_through_before_first_token(monkeypatch):
+    from app.llm import ChainProvider
+
+    class Bad:
+        name = "bad"
+        def stream(self, s, u):
+            raise RuntimeError("down")
+            yield
+
+    class Good:
+        name = "good"; model = "m"
+        def stream(self, s, u):
+            yield {"token": "hi", "prob": None, "alts": [], "real": False}
+
+    c = ChainProvider([Bad(), Good()])
+    assert [t["token"] for t in c.stream("s", "u")] == ["hi"]
+    assert c.active == "good/m"
